@@ -15,6 +15,7 @@ public class GunScriptableObject : ScriptableObject
     public Vector3 SpawnPoint;
     public Vector3 SpawnRotation;
 
+    public DamageConfigScriptableObject DamageConfig;
     public ShootConfigScriptableObject ShootConfig;
     public TrailConfigScriptableObject TrailConfig;
 
@@ -176,9 +177,10 @@ public class GunScriptableObject : ScriptableObject
 
         instance.transform.position = EndPoint;
 
-        // 如果击中物体，则触发表面效果
+        // 检查是否击中物体，如果击中则触发表面效果并处理伤害
         if (Hit.collider != null)
         {
+            // 调用表面管理器处理撞击效果
             SurfaceManager.Instance.HandleImpact(
                 Hit.transform.gameObject,
                 EndPoint,
@@ -186,7 +188,14 @@ public class GunScriptableObject : ScriptableObject
                 ImpactType,
                 0
             );
+
+            // 检查被击中的物体是否实现了IDamageable接口，如果是则应用伤害
+            if (Hit.collider.TryGetComponent(out IDamageable damageable))
+            {
+                damageable.TakeDamage(DamageConfig.GetDamage(distance));
+            }
         }
+
 
         // 等待轨迹持续时间后回收对象
         yield return new WaitForSeconds(TrailConfig.Duration);

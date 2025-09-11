@@ -164,42 +164,67 @@ public class SurfaceManager : MonoBehaviour
     /// <returns>对应的主纹理，若无法获取则返回 null。</returns>
     private Texture GetActiveTextureFromRenderer(Renderer Renderer, int TriangleIndex)
     {
+        // 尝试获取 MeshFilter 组件以访问网格数据
         if (Renderer.TryGetComponent<MeshFilter>(out MeshFilter meshFilter))
         {
             Mesh mesh = meshFilter.mesh;
 
-            if (mesh.subMeshCount > 1)
-            {
-                int[] hitTriangleIndices = new int[]
-                {
-                    mesh.triangles[TriangleIndex * 3],
-                    mesh.triangles[TriangleIndex * 3 + 1],
-                    mesh.triangles[TriangleIndex * 3 + 2]
-                };
+            return GetTextureFromMesh(mesh, TriangleIndex, Renderer.sharedMaterials);
+        }
+        // 如果是 SkinnedMeshRenderer 类型，则直接使用其共享网格
+        else if (Renderer is SkinnedMeshRenderer)
+        {
+            SkinnedMeshRenderer smr = (SkinnedMeshRenderer)Renderer;
+            Mesh mesh = smr.sharedMesh;
 
-                for (int i = 0; i < mesh.subMeshCount; i++)
+            return GetTextureFromMesh(mesh, TriangleIndex, Renderer.sharedMaterials);
+        }
+
+        Debug.LogError($"{Renderer.name} has no MeshFilter or SkinnedMeshRenderer! Using default impact effect instead of texture-specific one because we'll be unable to find the correct texture!");
+        return null;
+    }
+
+    /// <summary>
+    /// 从指定网格中根据三角面索引查找对应的主纹理。
+    /// </summary>
+    /// <param name="Mesh">目标网格对象。</param>
+    /// <param name="TriangleIndex">碰撞的三角面索引。</param>
+    /// <param name="Materials">与网格关联的材质数组。</param>
+    /// <returns>对应材质的主纹理，若未找到则返回第一个材质的主纹理。</returns>
+    private Texture GetTextureFromMesh(Mesh Mesh, int TriangleIndex, Material[] Materials)
+    {
+        // 当子网格数量大于1时，需要确定该三角面属于哪个子网格
+        if (Mesh.subMeshCount > 1)
+        {
+            // 提取当前三角面的三个顶点索引
+            int[] hitTriangleIndices = new int[]
+            {
+                Mesh.triangles[TriangleIndex * 3],
+                Mesh.triangles[TriangleIndex * 3 + 1],
+                Mesh.triangles[TriangleIndex * 3 + 2]
+            };
+
+            // 遍历所有子网格，寻找匹配的三角面
+            for (int i = 0; i < Mesh.subMeshCount; i++)
+            {
+                int[] submeshTriangles = Mesh.GetTriangles(i);
+                for (int j = 0; j < submeshTriangles.Length; j += 3)
                 {
-                    int[] submeshTriangles = mesh.GetTriangles(i);
-                    for (int j = 0; j < submeshTriangles.Length; j += 3)
+                    // 匹配三角面的三个顶点索引
+                    if (submeshTriangles[j] == hitTriangleIndices[0]
+                        && submeshTriangles[j + 1] == hitTriangleIndices[1]
+                        && submeshTriangles[j + 2] == hitTriangleIndices[2])
                     {
-                        if (submeshTriangles[j] == hitTriangleIndices[0]
-                            && submeshTriangles[j + 1] == hitTriangleIndices[1]
-                            && submeshTriangles[j + 2] == hitTriangleIndices[2])
-                        {
-                            return Renderer.sharedMaterials[i].mainTexture;
-                        }
+                        return Materials[i].mainTexture;
                     }
                 }
             }
-            else
-            {
-                return Renderer.sharedMaterial.mainTexture;
-            }
         }
 
-        Debug.LogError($"{Renderer.name} has no MeshFilter! Using default impact effect instead of texture-specific one because we'll be unable to find the correct texture!");
-        return null;
+        // 默认返回第一个材质的主纹理
+        return Materials[0].mainTexture;
     }
+
 
     /// <summary>
     /// 播放指定的 SurfaceEffect，包括生成对象和播放音频。
