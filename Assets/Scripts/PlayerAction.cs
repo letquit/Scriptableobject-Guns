@@ -15,13 +15,13 @@ public class PlayerAction : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        // 检查鼠标左键是否按下且当前有激活的武器
-        if (Mouse.current.leftButton.isPressed
-            && GunSelector.ActiveGun != null)
+        // 如果当前有激活的武器，则更新武器状态
+        if (GunSelector.ActiveGun != null)
         {
-            // 执行射击操作
-            GunSelector.ActiveGun.Shoot();
+            GunSelector.ActiveGun.Tick(Mouse.current.leftButton.isPressed);
         }
     }
+
+
 }
 

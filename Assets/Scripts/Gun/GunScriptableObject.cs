@@ -20,7 +20,12 @@ public class GunScriptableObject : ScriptableObject
 
     private MonoBehaviour ActiveMonoBehaviour;
     private GameObject Model;
+    
     private float LastShootTime;
+    private float InitialClickTime;
+    private float StopShootingTIme;
+    private bool LastFrameWantedToShoot;
+    
     private ParticleSystem ShootSystem;
     private ObjectPool<TrailRenderer> TrailPool;
 
@@ -51,30 +56,31 @@ public class GunScriptableObject : ScriptableObject
     /// </summary>
     public void Shoot()
     {
+        // 根据上次停止射击的时间与当前时间的间隔，调整初始点击时间以模拟后坐力恢复效果
+        if (Time.time - LastShootTime - ShootConfig.FireRate > Time.deltaTime)
+        {
+            float lastDuration = Mathf.Clamp(
+                0,
+                (StopShootingTIme - InitialClickTime),
+                ShootConfig.MaxSpreadTime
+            );
+            float lerpTime = (ShootConfig.RecoilRecoverySpeed - (Time.time - StopShootingTIme))
+                / ShootConfig.RecoilRecoverySpeed;
+            InitialClickTime = Time.time - Mathf.Lerp(0, lastDuration, Mathf.Clamp01(lerpTime));
+        }
+        
         // 检查是否满足射速间隔要求
         if (Time.time > ShootConfig.FireRate + LastShootTime)
         {
             LastShootTime = Time.time;
             ShootSystem.Play();
 
-            // 计算带散布的射击方向
-            Vector3 shootDirection = ShootSystem.transform.forward
-                + new Vector3(
-                    Random.Range(
-                        -ShootConfig.Spread.x,
-                        ShootConfig.Spread.x
-                    ),
-                    Random.Range(
-                        -ShootConfig.Spread.y,
-                        ShootConfig.Spread.y
-                    ),
-                    Random.Range(
-                        -ShootConfig.Spread.z,
-                        ShootConfig.Spread.z
-                    )
-                );
-            shootDirection.Normalize();
-
+            // 计算并应用射击散布方向偏移
+            Vector3 spreadAmount = ShootConfig.GetSpread(Time.time - InitialClickTime);
+            Model.transform.forward += Model.transform.TransformDirection(spreadAmount);
+            
+            Vector3 shootDirection = Model.transform.forward;
+            
             // 发射射线检测命中
             if (Physics.Raycast(
                     ShootSystem.transform.position,
@@ -106,6 +112,34 @@ public class GunScriptableObject : ScriptableObject
             }
         }
     }
+
+    
+    /// <summary>
+    /// 每帧更新武器状态，处理射击逻辑和后坐力恢复
+    /// </summary>
+    /// <param name="WantsToShoot">是否想要射击的布尔值</param>
+    public void Tick(bool WantsToShoot)
+    {
+        // 平滑恢复模型的旋转角度，模拟后坐力恢复效果
+        Model.transform.localRotation = Quaternion.Lerp(
+            Model.transform.localRotation,
+            Quaternion.Euler(SpawnRotation),
+            Time.deltaTime * ShootConfig.RecoilRecoverySpeed
+        );
+        
+        if (WantsToShoot)
+        {
+            LastFrameWantedToShoot = true;
+            Shoot();
+        }
+        else if (!WantsToShoot && LastFrameWantedToShoot)
+        {
+            StopShootingTIme = Time.time;
+            LastFrameWantedToShoot = false;
+        }
+    }
+
+
 
     /// <summary>
     /// 播放轨迹效果，从起始点移动到终点，并处理碰撞效果
