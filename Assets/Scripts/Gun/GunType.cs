@@ -11,5 +11,11 @@ public enum GunType
     /// <summary>
     /// M4A1突击步枪
     /// </summary>
-    M4A1
+    M4A1,
+    
+    /// <summary>
+    /// 火箭发射器
+    /// </summary>
+    RocketLauncher
 }
+

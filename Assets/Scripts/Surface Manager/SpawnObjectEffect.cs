@@ -28,5 +28,14 @@ public class SpawnObjectEffect : ScriptableObject
     /// </summary>
     [Tooltip("Zero values will lock the rotation on that axis. Values up to 360 are sensible for each X,Y,Z")]
     public Vector3 RandomizedRotationMultiplier = Vector3.zero;
+    
+    /// <summary>
+    /// 是否为粒子系统类型的效果
+    /// </summary>
+    public bool IsParticleSystem = true;
+    
+    /// <summary>
+    /// 粒子系统额外的销毁延迟时间（秒）
+    /// </summary>
+    public float ParticleSystemDestroyDelay = 1f;
 }
-
