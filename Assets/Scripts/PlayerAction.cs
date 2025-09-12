@@ -32,6 +32,7 @@ public class PlayerAction : MonoBehaviour
         // 检查是否需要进行手动或自动换弹
         if (ShouldManualReload() || ShouldAutoReload())
         {
+            GunSelector.ActiveGun.StartReloading();
             IsReloading = true;
             PlayerAnimator.SetTrigger("Reload");
             InverseKinematics.HandIKAmount = 0.25f;

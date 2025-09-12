@@ -19,10 +19,11 @@ public class GunScriptableObject : ScriptableObject
     public AmmoConfigScriptableObject AmmoConfig;
     public ShootConfigScriptableObject ShootConfig;
     public TrailConfigScriptableObject TrailConfig;
+    public AudioConfigScriptableObject AudioConfig;
 
     private MonoBehaviour ActiveMonoBehaviour;
     private GameObject Model;
-    
+    private AudioSource ShootingAudioSource;
     private float LastShootTime;
     private float InitialClickTime;
     private float StopShootingTIme;
@@ -58,6 +59,7 @@ public class GunScriptableObject : ScriptableObject
 
         // 获取枪械模型中的粒子系统组件
         ShootSystem = Model.GetComponentInChildren<ParticleSystem>();
+        ShootingAudioSource = Model.GetComponent<AudioSource>();
     }
 
 
@@ -65,7 +67,7 @@ public class GunScriptableObject : ScriptableObject
     /// <summary>
     /// 执行射击逻辑，包括射速控制、散布计算、射线检测和弹道轨迹播放
     /// </summary>
-    public void Shoot()
+    public void TryToShoot()
     {
         // 根据上次停止射击的时间与当前时间的间隔，调整初始点击时间以模拟后坐力恢复效果
         if (Time.time - LastShootTime - ShootConfig.FireRate > Time.deltaTime)
@@ -84,7 +86,14 @@ public class GunScriptableObject : ScriptableObject
         if (Time.time > ShootConfig.FireRate + LastShootTime)
         {
             LastShootTime = Time.time;
+            if (AmmoConfig.CurrentClipAmmo == 0)
+            {
+                AudioConfig.PlayOutOfAmmoClip(ShootingAudioSource);
+                return;
+            }
+            
             ShootSystem.Play();
+            AudioConfig.PlayShootingClip(ShootingAudioSource, AmmoConfig.CurrentClipAmmo == 1);
 
             // 计算并应用射击散布方向偏移
             Vector3 spreadAmount = ShootConfig.GetSpread(Time.time - InitialClickTime);
@@ -124,7 +133,15 @@ public class GunScriptableObject : ScriptableObject
             }
         }
     }
-
+    
+    /// <summary>
+    /// 播放重新加载的音频剪辑（如果已分配）。
+    /// </summary>
+    public void StartReloading()
+    {
+        AudioConfig.PlayReloadClip(ShootingAudioSource);
+    }
+    
     /// <summary>
     /// 检查是否可以重新加载弹药
     /// </summary>
@@ -159,10 +176,7 @@ public class GunScriptableObject : ScriptableObject
         if (WantsToShoot)
         {
             LastFrameWantedToShoot = true;
-            if (AmmoConfig.CurrentClipAmmo > 0)
-            {
-                Shoot();
-            }
+            TryToShoot();
         }
         else if (!WantsToShoot && LastFrameWantedToShoot)
         {
