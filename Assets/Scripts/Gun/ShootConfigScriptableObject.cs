@@ -10,6 +10,21 @@ using UnityEngine;
 public class ShootConfigScriptableObject : ScriptableObject
 {
     /// <summary>
+    /// 是否启用瞬间命中检测模式
+    /// </summary>
+    public bool IsHitscan = true;
+
+    /// <summary>
+    /// 子弹预制体引用
+    /// </summary>
+    public Bullet BulletPrefab;
+
+    /// <summary>
+    /// 子弹生成时的初始推力大小
+    /// </summary>
+    public float BulletSpawnForce = 1000f;
+
+    /// <summary>
     /// 子弹命中的层级掩码
     /// 用于确定子弹可以与哪些层级的物体发生碰撞检测
     /// </summary>

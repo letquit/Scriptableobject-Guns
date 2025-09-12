@@ -30,6 +30,7 @@ public class GunScriptableObject : ScriptableObject
     private bool LastFrameWantedToShoot;
     
     private ParticleSystem ShootSystem;
+    private ObjectPool<Bullet> BulletPool;
     private ObjectPool<TrailRenderer> TrailPool;
 
     /// <summary>
@@ -50,7 +51,11 @@ public class GunScriptableObject : ScriptableObject
         
         // 创建子弹轨迹渲染器的对象池
         TrailPool = new ObjectPool<TrailRenderer>(CreateTrail);
-
+        if (!ShootConfig.IsHitscan)
+        {
+            BulletPool = new ObjectPool<Bullet>(CreateBullet);
+        }
+        
         // 实例化枪械模型并设置其位置和旋转
         Model = Instantiate(ModelPrefab);
         Model.transform.SetParent(Parent, false);
@@ -61,8 +66,6 @@ public class GunScriptableObject : ScriptableObject
         ShootSystem = Model.GetComponentInChildren<ParticleSystem>();
         ShootingAudioSource = Model.GetComponent<AudioSource>();
     }
-
-
 
     /// <summary>
     /// 执行射击逻辑，包括射速控制、散布计算、射线检测和弹道轨迹播放
@@ -86,12 +89,14 @@ public class GunScriptableObject : ScriptableObject
         if (Time.time > ShootConfig.FireRate + LastShootTime)
         {
             LastShootTime = Time.time;
+            // 检查弹药是否足够，如果不足则播放空仓音效并返回
             if (AmmoConfig.CurrentClipAmmo == 0)
             {
                 AudioConfig.PlayOutOfAmmoClip(ShootingAudioSource);
                 return;
             }
             
+            // 播放射击特效和音效
             ShootSystem.Play();
             AudioConfig.PlayShootingClip(ShootingAudioSource, AmmoConfig.CurrentClipAmmo == 1);
 
@@ -101,39 +106,138 @@ public class GunScriptableObject : ScriptableObject
             
             Vector3 shootDirection = Model.transform.forward;
 
+            // 减少当前弹夹中的子弹数量
             AmmoConfig.CurrentClipAmmo--;
-            // 发射射线检测命中
-            if (Physics.Raycast(
-                    ShootSystem.transform.position,
-                    shootDirection,
-                    out RaycastHit hit,
-                    float.MaxValue,
-                    ShootConfig.HitMask
-                ))
+
+            // 根据配置选择命中检测方式：射线检测或投射物检测
+            if (ShootConfig.IsHitscan)
             {
-                // 命中目标时播放弹道轨迹
-                ActiveMonoBehaviour.StartCoroutine(
-                    PlayTrail(
-                        ShootSystem.transform.position,
-                        hit.point,
-                        hit
-                    )
-                );
+                DoHitscanShoot(shootDirection);
             }
             else
             {
-                // 未命中目标时播放空弹道轨迹
-                ActiveMonoBehaviour.StartCoroutine(
-                    PlayTrail(
-                        ShootSystem.transform.position,
-                        ShootSystem.transform.position + (shootDirection * TrailConfig.MissDistance),
-                        new RaycastHit()
-                    )
-                );
+                DoProjectileShoot(shootDirection);
             }
         }
     }
-    
+
+    /// <summary>
+    /// 执行射线检测射击逻辑，根据是否命中目标播放对应的弹道轨迹。
+    /// </summary>
+    /// <param name="ShootDirection">射击方向向量</param>
+    private void DoHitscanShoot(Vector3 ShootDirection)
+    {
+        
+        // 发射射线检测命中
+        if (Physics.Raycast(
+                ShootSystem.transform.position,
+                ShootDirection,
+                out RaycastHit hit,
+                float.MaxValue,
+                ShootConfig.HitMask
+            ))
+        {
+            // 命中目标时播放弹道轨迹
+            ActiveMonoBehaviour.StartCoroutine(
+                PlayTrail(
+                    ShootSystem.transform.position,
+                    hit.point,
+                    hit
+                )
+            );
+        }
+        else
+        {
+            // 未命中目标时播放空弹道轨迹
+            ActiveMonoBehaviour.StartCoroutine(
+                PlayTrail(
+                    ShootSystem.transform.position,
+                    ShootSystem.transform.position + (ShootDirection * TrailConfig.MissDistance),
+                    new RaycastHit()
+                )
+            );
+        }
+    }
+
+    /// <summary>
+    /// 执行投射物射击逻辑，从对象池中获取子弹和尾迹，并初始化其状态。
+    /// </summary>
+    /// <param name="ShootDirection">射击方向向量</param>
+    private void DoProjectileShoot(Vector3 ShootDirection)
+    {
+        Bullet bullet = BulletPool.Get();
+        bullet.gameObject.SetActive(true);
+        bullet.OnCollision += HandleBulletCollision;
+        bullet.transform.position = ShootSystem.transform.position;
+        bullet.Spawn(ShootDirection * ShootConfig.BulletSpawnForce);
+        
+        TrailRenderer trail = TrailPool.Get();
+        if (trail != null)
+        {
+            trail.transform.SetParent(bullet.transform, false);
+            trail.transform.localPosition = Vector3.zero;
+            trail.emitting = true;
+            trail.gameObject.SetActive(true);
+        }
+    }
+
+    /// <summary>
+    /// 处理子弹碰撞事件，回收尾迹和子弹对象，并触发撞击效果。
+    /// </summary>
+    /// <param name="Bullet">发生碰撞的子弹实例</param>
+    /// <param name="Collision">Unity 碰撞信息对象</param>
+    private void HandleBulletCollision(Bullet Bullet, Collision Collision)
+    {
+        TrailRenderer trail = Bullet.GetComponentInChildren<TrailRenderer>();
+        if (trail != null)
+        {
+            trail.transform.SetParent(null, true);
+            ActiveMonoBehaviour.StartCoroutine(DelayedDisableTrail(trail));
+        }
+        
+        Bullet.gameObject.SetActive(false);
+        BulletPool.Release(Bullet);
+
+        if (Collision != null)
+        {
+            ContactPoint contactPoint = Collision.GetContact(0);
+
+            HandleBulletImpact(
+                Vector3.Distance(contactPoint.point, Bullet.SpawnLocation),
+                contactPoint.point,
+                contactPoint.normal,
+                contactPoint.otherCollider
+            );
+        }
+    }
+
+    /// <summary>
+    /// 处理子弹撞击逻辑，包括表面效果和对可伤害对象造成伤害。
+    /// </summary>
+    /// <param name="DistanceTraveled">子弹飞行的距离</param>
+    /// <param name="HitLocation">撞击点坐标</param>
+    /// <param name="HitNormal">撞击法线方向</param>
+    /// <param name="HitCollider">被撞击的碰撞体</param>
+    private void HandleBulletImpact(
+        float DistanceTraveled,
+        Vector3 HitLocation,
+        Vector3 HitNormal,
+        Collider HitCollider)
+    {
+        SurfaceManager.Instance.HandleImpact(
+            HitCollider.gameObject,
+            HitLocation,
+            HitNormal,
+            ImpactType,
+            0
+        );
+
+        if (HitCollider.TryGetComponent(out IDamageable damageable))
+        {
+            damageable.TakeDamage(DamageConfig.GetDamage(DistanceTraveled));
+        }
+    }
+
     /// <summary>
     /// 播放重新加载的音频剪辑（如果已分配）。
     /// </summary>
@@ -225,23 +329,9 @@ public class GunScriptableObject : ScriptableObject
         // 检查是否击中物体，如果击中则触发表面效果并处理伤害
         if (Hit.collider != null)
         {
-            // 调用表面管理器处理撞击效果
-            SurfaceManager.Instance.HandleImpact(
-                Hit.transform.gameObject,
-                EndPoint,
-                Hit.normal,
-                ImpactType,
-                0
-            );
-
-            // 检查被击中的物体是否实现了IDamageable接口，如果是则应用伤害
-            if (Hit.collider.TryGetComponent(out IDamageable damageable))
-            {
-                damageable.TakeDamage(DamageConfig.GetDamage(distance));
-            }
+            HandleBulletImpact(distance, EndPoint, Hit.normal, Hit.collider);
         }
-
-
+        
         // 等待轨迹持续时间后回收对象
         yield return new WaitForSeconds(TrailConfig.Duration);
         yield return null;
@@ -250,6 +340,24 @@ public class GunScriptableObject : ScriptableObject
         TrailPool.Release(instance);
     }
 
+    /// <summary>
+    /// 延迟禁用轨迹渲染器的协程函数
+    /// </summary>
+    /// <param name="Trail">需要被延迟禁用的轨迹渲染器组件</param>
+    /// <returns>返回IEnumerator用于协程执行</returns>
+    private IEnumerator DelayedDisableTrail(TrailRenderer Trail)
+    {
+        // 等待指定的持续时间后继续执行
+        yield return new WaitForSeconds(TrailConfig.Duration);
+        
+        // 等待一帧确保渲染完成
+        yield return null;
+        
+        // 停止轨迹渲染器的发射并禁用游戏对象，最后将轨迹渲染器回收到对象池
+        Trail.emitting = false;
+        Trail.gameObject.SetActive(false);
+        TrailPool.Release(Trail);
+    }
 
     /// <summary>
     /// 创建一个新的 TrailRenderer 实例作为子弹轨迹使用。
@@ -275,5 +383,8 @@ public class GunScriptableObject : ScriptableObject
         return trail;
     }
 
-
+    private Bullet CreateBullet()
+    {
+        return Instantiate(ShootConfig.BulletPrefab);
+    }
 }
