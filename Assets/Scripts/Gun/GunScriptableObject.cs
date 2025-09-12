@@ -16,6 +16,7 @@ public class GunScriptableObject : ScriptableObject
     public Vector3 SpawnRotation;
 
     public DamageConfigScriptableObject DamageConfig;
+    public AmmoConfigScriptableObject AmmoConfig;
     public ShootConfigScriptableObject ShootConfig;
     public TrailConfigScriptableObject TrailConfig;
 
@@ -38,7 +39,15 @@ public class GunScriptableObject : ScriptableObject
     public void Spawn(Transform Parent, MonoBehaviour ActiveMonoBehaviour)
     {
         this.ActiveMonoBehaviour = ActiveMonoBehaviour;
-        LastShootTime = 0; // in editor this will not be properly reset, in build it's fine
+        
+        // 重置射击相关的时间参数和弹药配置
+        LastShootTime = 0; // 在编辑器中，这将不会被正确重置，在构建中没问题
+        StopShootingTIme = 0;
+        InitialClickTime = 0;
+        AmmoConfig.CurrentClipAmmo = AmmoConfig.ClipSize;
+        AmmoConfig.CurrentAmmo = AmmoConfig.MaxAmmo;
+        
+        // 创建子弹轨迹渲染器的对象池
         TrailPool = new ObjectPool<TrailRenderer>(CreateTrail);
 
         // 实例化枪械模型并设置其位置和旋转
@@ -50,6 +59,7 @@ public class GunScriptableObject : ScriptableObject
         // 获取枪械模型中的粒子系统组件
         ShootSystem = Model.GetComponentInChildren<ParticleSystem>();
     }
+
 
 
     /// <summary>
@@ -81,7 +91,8 @@ public class GunScriptableObject : ScriptableObject
             Model.transform.forward += Model.transform.TransformDirection(spreadAmount);
             
             Vector3 shootDirection = Model.transform.forward;
-            
+
+            AmmoConfig.CurrentClipAmmo--;
             // 发射射线检测命中
             if (Physics.Raycast(
                     ShootSystem.transform.position,
@@ -114,6 +125,23 @@ public class GunScriptableObject : ScriptableObject
         }
     }
 
+    /// <summary>
+    /// 检查是否可以重新加载弹药
+    /// </summary>
+    /// <returns>如果可以重新加载则返回true，否则返回false</returns>
+    public bool CanReload()
+    {
+        return AmmoConfig.CanReload();
+    }
+
+    /// <summary>
+    /// 结束重新加载过程并执行实际的重新加载操作
+    /// </summary>
+    public void EndReload()
+    {
+        AmmoConfig.Reload();
+    }
+
     
     /// <summary>
     /// 每帧更新武器状态，处理射击逻辑和后坐力恢复
@@ -131,7 +159,10 @@ public class GunScriptableObject : ScriptableObject
         if (WantsToShoot)
         {
             LastFrameWantedToShoot = true;
-            Shoot();
+            if (AmmoConfig.CurrentClipAmmo > 0)
+            {
+                Shoot();
+            }
         }
         else if (!WantsToShoot && LastFrameWantedToShoot)
         {

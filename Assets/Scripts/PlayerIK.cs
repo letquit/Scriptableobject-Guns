@@ -31,16 +31,14 @@ public class PlayerIK : MonoBehaviour
     /// <summary>
     /// 手部 IK 权重，取值范围为 0 到 1。
     /// </summary>
-    [SerializeField]
     [Range(0, 1f)]
-    private float HandIKAmount = 1f;
+    public float HandIKAmount = 1f;
 
     /// <summary>
     /// 手肘 IK 权重，取值范围为 0 到 1。
     /// </summary>
-    [SerializeField]
     [Range(0, 1f)]
-    private float ElbowIKAmount = 1f;
+    public float ElbowIKAmount = 1f;
 
     /// <summary>
     /// Animator 组件的引用。
