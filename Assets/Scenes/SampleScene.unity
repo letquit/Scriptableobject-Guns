@@ -3253,6 +3253,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ac4689bf3b945e18fa3fad5f115d8cf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ImpactTypeOverride: {fileID: 11400000, guid: 192b7aea6a7b8a54e99e0661ba82f881, type: 2}
   GunSelector: {fileID: 624691197}
 --- !u!1 &635136492
 GameObject:
