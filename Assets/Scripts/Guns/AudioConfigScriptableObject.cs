@@ -1,11 +1,13 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
+using Random = UnityEngine.Random;
 
 /// <summary>
 /// 音频配置脚本化对象类，用于管理枪械相关的音频配置和播放
 /// 通过CreateAssetMenu可以在Unity编辑器中创建该配置文件的实例
 /// </summary>
 [CreateAssetMenu(fileName = "Audio Config", menuName = "Guns/Audio Config", order = 5)]
-public class AudioConfigScriptableObject : ScriptableObject
+public class AudioConfigScriptableObject : ScriptableObject, ICloneable
 {
     /// <summary>
     /// 音量控制，范围在0到1之间
@@ -76,4 +78,20 @@ public class AudioConfigScriptableObject : ScriptableObject
             AudioSource.PlayOneShot(ReloadClip, Volume);
         }
     }
+    
+    /// <summary>
+    /// 创建当前音频配置脚本化对象的深层副本
+    /// </summary>
+    /// <returns>返回一个新的AudioConfigScriptableObject实例，包含与当前对象相同的数据</returns>
+    public object Clone()
+    {
+        // 创建新的音频配置对象实例
+        AudioConfigScriptableObject config = CreateInstance<AudioConfigScriptableObject>();
+        
+        // 将当前对象的所有值复制到新创建的实例中
+        Utilities.CopyValues(this, config);
+        
+        return config;
+    }
+
 }

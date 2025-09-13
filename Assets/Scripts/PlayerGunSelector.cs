@@ -63,8 +63,11 @@ public class PlayerGunSelector : MonoBehaviour
             return;
         }
 
-        ActiveGun = gun;
-        gun.Spawn(GunParent, this, Camera);
+        // 克隆枪械配置对象并激活使用
+        ActiveGun = gun.Clone() as GunScriptableObject;
+        // 如果克隆成功，则在指定父对象下生成枪械实例
+        ActiveGun?.Spawn(GunParent, this, Camera);
+
 
         // 设置IK目标点，用于动画反向动力学
         Transform[] allChildren = GunParent.GetComponentsInChildren<Transform>();

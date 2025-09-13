@@ -1,5 +1,7 @@
+using System;
 using System.Linq;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 /// <summary>
 /// 射击配置脚本化对象类
@@ -7,7 +9,7 @@ using UnityEngine;
 /// 可以通过Unity编辑器的菜单创建该资源文件
 /// </summary>
 [CreateAssetMenu(fileName = "Shoot Config", menuName = "Guns/Shoot Config", order = 2)]
-public class ShootConfigScriptableObject : ScriptableObject
+public class ShootConfigScriptableObject : ScriptableObject, ICloneable
 {
     /// <summary>
     /// 是否启用瞬间命中检测模式
@@ -177,6 +179,21 @@ public class ShootConfigScriptableObject : ScriptableObject
         Vector2 direction = (targetPosition - halfSize) / halfSize.x;
 
         return direction;
+    }
+
+    /// <summary>
+    /// 创建当前射击配置脚本化对象的克隆副本
+    /// </summary>
+    /// <returns>返回一个新的ShootConfigScriptableObject对象，包含与当前对象相同的数据</returns>
+    public object Clone()
+    {
+        // 创建新的脚本化对象实例
+        ShootConfigScriptableObject config = CreateInstance<ShootConfigScriptableObject>();
+        
+        // 复制当前对象的所有值到新创建的实例中
+        Utilities.CopyValues(this, config);
+        
+        return config;
     }
 
 }

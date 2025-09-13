@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 
@@ -5,7 +6,7 @@ using UnityEngine;
 /// 弹药配置脚本化对象类，用于管理武器的弹药系统
 /// </summary>
 [CreateAssetMenu(fileName = "Ammo Config", menuName = "Guns/Ammo Config", order = 3)]
-public class AmmoConfigScriptableObject : ScriptableObject
+public class AmmoConfigScriptableObject : ScriptableObject, ICloneable
 {
     /// <summary>
     /// 最大备用弹药数量
@@ -63,5 +64,21 @@ public class AmmoConfigScriptableObject : ScriptableObject
     {
         return CurrentClipAmmo < ClipSize && CurrentAmmo > 0;
     }
+
+    /// <summary>
+    /// 创建当前弹药配置脚本化对象的克隆副本
+    /// </summary>
+    /// <returns>返回一个新的弹药配置脚本化对象实例，包含与当前对象相同的属性值</returns>
+    public object Clone()
+    {
+        // 创建新的弹药配置脚本化对象实例
+        AmmoConfigScriptableObject config = CreateInstance<AmmoConfigScriptableObject>();
+        
+        // 复制当前对象的所有属性值到新创建的实例中
+        Utilities.CopyValues(this, config);
+        
+        return config;
+    }
+
 }
 

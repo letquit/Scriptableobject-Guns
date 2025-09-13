@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Pool;
@@ -6,7 +7,7 @@ using UnityEngine.Pool;
 /// 枪械数据的 ScriptableObject 类，用于定义枪械的基本属性、射击配置和弹道特效。
 /// </summary>
 [CreateAssetMenu(fileName = "Gun", menuName = "Guns/Gun", order = 0)]
-public class GunScriptableObject : ScriptableObject
+public class GunScriptableObject : ScriptableObject, ICloneable
 {
     public ImpactType ImpactType;
     public GunType Type;
@@ -44,13 +45,6 @@ public class GunScriptableObject : ScriptableObject
     {
         this.ActiveMonoBehaviour = ActiveMonoBehaviour;
         this.ActiveCamera = ActiveCamera;
-        
-        // 重置射击相关的时间参数和弹药配置
-        LastShootTime = 0; // 在编辑器中，这将不会被正确重置，在构建中没问题
-        StopShootingTIme = 0;
-        InitialClickTime = 0;
-        AmmoConfig.CurrentClipAmmo = AmmoConfig.ClipSize;
-        AmmoConfig.CurrentAmmo = AmmoConfig.MaxAmmo;
         
         // 创建子弹轨迹渲染器的对象池
         TrailPool = new ObjectPool<TrailRenderer>(CreateTrail);
@@ -452,4 +446,35 @@ public class GunScriptableObject : ScriptableObject
     {
         return Instantiate(ShootConfig.BulletPrefab);
     }
+
+    /// <summary>
+    /// 创建当前枪械配置对象的深拷贝副本
+    /// </summary>
+    /// <returns>返回一个新的GunScriptableObject实例，包含与当前对象相同的所有配置数据</returns>
+    public object Clone()
+    {
+        // 创建新的枪械配置对象实例
+        GunScriptableObject config = CreateInstance<GunScriptableObject>();
+
+        // 复制基础配置信息
+        config.ImpactType = ImpactType;
+        config.Type = Type;
+        config.Name = Name;
+        config.name = name;
+        
+        // 递归克隆各个配置子对象
+        config.DamageConfig = DamageConfig.Clone() as DamageConfigScriptableObject;
+        config.ShootConfig = ShootConfig.Clone() as ShootConfigScriptableObject;
+        config.AmmoConfig = AmmoConfig.Clone() as AmmoConfigScriptableObject;
+        config.TrailConfig = TrailConfig.Clone() as TrailConfigScriptableObject;
+        config.AudioConfig = AudioConfig.Clone() as AudioConfigScriptableObject;
+        
+        // 复制模型和位置配置
+        config.ModelPrefab = ModelPrefab;
+        config.SpawnPoint = SpawnPoint;
+        config.SpawnRotation = SpawnRotation;
+        
+        return config;
+    }
+
 }
