@@ -9,6 +9,11 @@ using UnityEngine;
 public class PlayerGunSelector : MonoBehaviour
 {
     /// <summary>
+    /// 公共的Camera组件引用变量
+    /// </summary>
+    public Camera Camera;
+
+    /// <summary>
     /// 枪械类型序列化字段，用于在Inspector中指定枪械类型
     /// </summary>
     [SerializeField]
@@ -59,7 +64,7 @@ public class PlayerGunSelector : MonoBehaviour
         }
 
         ActiveGun = gun;
-        gun.Spawn(GunParent, this);
+        gun.Spawn(GunParent, this, Camera);
 
         // 设置IK目标点，用于动画反向动力学
         Transform[] allChildren = GunParent.GetComponentsInChildren<Transform>();

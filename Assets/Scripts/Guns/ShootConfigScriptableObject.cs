@@ -36,7 +36,12 @@ public class ShootConfigScriptableObject : ScriptableObject
     /// 值越小射速越快，默认值0.25秒
     /// </summary>
     public float FireRate = 0.25f;
-
+    
+    /// <summary>
+    /// 射击类型枚举值，表示当前使用的射击方式
+    /// </summary>
+    public ShootType ShootType = ShootType.FromGun;
+    
     /// <summary>
     /// 后坐力恢复速度
     /// 控制射击后武器后坐力恢复到初始状态的速度

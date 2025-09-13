@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70393424e62342f985ee4e2cb97dd9a6, type: 3}
   m_Name: Glock Audio Config
   m_EditorClassIdentifier: 
-  Volume: 0.5
+  Volume: 1
   FireClips:
   - {fileID: 8300000, guid: 82996a07f4b1c5942babb7fb61e02e49, type: 3}
   - {fileID: 8300000, guid: bbba4d56a21b781458ef3f12d88efb6c, type: 3}

@@ -23,6 +23,7 @@ public class GunScriptableObject : ScriptableObject
 
     private MonoBehaviour ActiveMonoBehaviour;
     private GameObject Model;
+    private Camera ActiveCamera;
     private AudioSource ShootingAudioSource;
     private float LastShootTime;
     private float InitialClickTime;
@@ -38,9 +39,11 @@ public class GunScriptableObject : ScriptableObject
     /// </summary>
     /// <param name="Parent">枪械模型的父级 Transform。</param>
     /// <param name="ActiveMonoBehaviour">当前激活的 MonoBehaviour 实例，用于协程启动。</param>
-    public void Spawn(Transform Parent, MonoBehaviour ActiveMonoBehaviour)
+    /// <param name="ActiveCamera">当前激活的摄像机实例，用于从摄像机位置进行射击。</param>
+    public void Spawn(Transform Parent, MonoBehaviour ActiveMonoBehaviour, Camera ActiveCamera = null)
     {
         this.ActiveMonoBehaviour = ActiveMonoBehaviour;
+        this.ActiveCamera = ActiveCamera;
         
         // 重置射击相关的时间参数和弹药配置
         LastShootTime = 0; // 在编辑器中，这将不会被正确重置，在构建中没问题
@@ -104,8 +107,18 @@ public class GunScriptableObject : ScriptableObject
             Vector3 spreadAmount = ShootConfig.GetSpread(Time.time - InitialClickTime);
             Model.transform.forward += Model.transform.TransformDirection(spreadAmount);
             
-            Vector3 shootDirection = Model.transform.forward;
+            Vector3 shootDirection = Vector3.zero;
 
+            if (ShootConfig.ShootType == ShootType.FromGun)
+            {
+                shootDirection = ShootSystem.transform.forward;
+            }
+            else
+            {
+                shootDirection = ActiveCamera.transform.forward +
+                                 ActiveCamera.transform.TransformDirection(shootDirection);
+            }
+            
             // 减少当前弹夹中的子弹数量
             AmmoConfig.CurrentClipAmmo--;
 
@@ -130,7 +143,7 @@ public class GunScriptableObject : ScriptableObject
         
         // 发射射线检测命中
         if (Physics.Raycast(
-                ShootSystem.transform.position,
+                GetRaycastOrigin(),
                 ShootDirection,
                 out RaycastHit hit,
                 float.MaxValue,
@@ -160,6 +173,34 @@ public class GunScriptableObject : ScriptableObject
     }
 
     /// <summary>
+    /// 获取射线检测的起点位置，根据射击类型决定是从枪口还是摄像机发出。
+    /// </summary>
+    /// <returns>射线检测的起点坐标</returns>
+    public Vector3 GetRaycastOrigin()
+    {
+        Vector3 origin = ShootSystem.transform.position;
+        
+        if (ShootConfig.ShootType == ShootType.FromCamera)
+        {
+            origin = ActiveCamera.transform.position + ActiveCamera.transform.forward *
+                Vector3.Distance(
+                    ActiveCamera.transform.position, ShootSystem.transform.position
+                );
+        }
+        
+        return origin;
+    }
+
+    /// <summary>
+    /// 获取枪械模型的前向方向。
+    /// </summary>
+    /// <returns>枪械模型的前向方向向量</returns>
+    public Vector3 GetGunForward()
+    {
+        return Model.transform.forward;
+    }
+
+    /// <summary>
     /// 执行投射物射击逻辑，从对象池中获取子弹和尾迹，并初始化其状态。
     /// </summary>
     /// <param name="ShootDirection">射击方向向量</param>
@@ -168,6 +209,20 @@ public class GunScriptableObject : ScriptableObject
         Bullet bullet = BulletPool.Get();
         bullet.gameObject.SetActive(true);
         bullet.OnCollision += HandleBulletCollision;
+
+        if (ShootConfig.ShootType == ShootType.FromCamera
+            && Physics.Raycast(
+                GetRaycastOrigin(),
+                ShootDirection,
+                out RaycastHit hit,
+                float.MaxValue,
+                ShootConfig.HitMask))
+        {
+            Vector3 directionToHit = (hit.point - ShootSystem.transform.position).normalized;
+            Model.transform.forward = directionToHit;
+            ShootDirection = directionToHit;
+        }
+        
         bullet.transform.position = ShootSystem.transform.position;
         bullet.Spawn(ShootDirection * ShootConfig.BulletSpawnForce);
         
@@ -263,6 +318,14 @@ public class GunScriptableObject : ScriptableObject
         AmmoConfig.Reload();
     }
 
+    /// <summary>
+    /// 更新当前使用的摄像机引用。
+    /// </summary>
+    /// <param name="ActiveCamera">新的摄像机实例</param>
+    public void UpdateCamera(Camera ActiveCamera)
+    {
+        this.ActiveCamera = ActiveCamera;
+    }
     
     /// <summary>
     /// 每帧更新武器状态，处理射击逻辑和后坐力恢复
@@ -288,8 +351,6 @@ public class GunScriptableObject : ScriptableObject
             LastFrameWantedToShoot = false;
         }
     }
-
-
 
     /// <summary>
     /// 播放轨迹效果，从起始点移动到终点，并处理碰撞效果
@@ -383,6 +444,10 @@ public class GunScriptableObject : ScriptableObject
         return trail;
     }
 
+    /// <summary>
+    /// 创建一个新的 Bullet 实例作为子弹投射物使用。
+    /// </summary>
+    /// <returns>新创建的 Bullet 组件实例。</returns>
     private Bullet CreateBullet()
     {
         return Instantiate(ShootConfig.BulletPrefab);

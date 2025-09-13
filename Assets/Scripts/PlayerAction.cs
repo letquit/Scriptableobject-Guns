@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 /// <summary>
 /// 玩家行为控制类，用于处理玩家的射击输入操作
@@ -15,6 +16,8 @@ public class PlayerAction : MonoBehaviour
     private Animator PlayerAnimator;
     [SerializeField]
     private PlayerIK InverseKinematics;
+    [SerializeField]
+    private Image Crosshair;
 
     private bool IsReloading;
 
@@ -37,6 +40,40 @@ public class PlayerAction : MonoBehaviour
             PlayerAnimator.SetTrigger("Reload");
             InverseKinematics.HandIKAmount = 0.25f;
             InverseKinematics.ElbowIKAmount = 0.25f;
+        }
+        
+        UpdateCrosshair();
+    }
+    
+    /// <summary>
+    /// 更新准星位置，使其指向枪口射线与场景的交点
+    /// </summary>
+    private void UpdateCrosshair()
+    {
+        if (GunSelector.ActiveGun.ShootConfig.ShootType == ShootType.FromGun)
+        {
+            Vector3 gunTipPoint = GunSelector.ActiveGun.GetRaycastOrigin();
+            Vector3 forward = GunSelector.ActiveGun.GetGunForward();
+
+            Vector3 hitPoint = gunTipPoint + forward * 10;
+            if (Physics.Raycast(gunTipPoint, forward, out RaycastHit hit, float.MaxValue, GunSelector.ActiveGun.ShootConfig.HitMask))
+            {
+                hitPoint = hit.point;
+            }
+            Vector3 screenSpaceLocation = GunSelector.Camera.WorldToScreenPoint(hitPoint);
+
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    (RectTransform)Crosshair.transform.parent,
+                    screenSpaceLocation,
+                    null,
+                    out Vector2 localPosition))
+            {
+                Crosshair.rectTransform.anchoredPosition = localPosition;
+            }
+            else
+            {
+                Crosshair.rectTransform.anchoredPosition = Vector2.zero;
+            }
         }
     }
 
@@ -74,4 +111,3 @@ public class PlayerAction : MonoBehaviour
                && GunSelector.ActiveGun.CanReload();
     }
 }
-
