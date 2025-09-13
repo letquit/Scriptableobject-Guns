@@ -19,11 +19,22 @@ public class PoolableObject : MonoBehaviour
     private void OnDisable()
     {
         // 检查父对象池是否存在，避免空引用异常
-        if (Parent != null)
+        if (Parent != null && gameObject != null)
         {
-            // 将当前游戏对象释放回对象池
-            Parent.Release(gameObject);
+            // 检查对象是否已经被释放
+            var pool = Parent;
+            Parent = null; // 先清除引用以避免重复释放
+            
+            try
+            {
+                // 将当前游戏对象释放回对象池
+                pool.Release(gameObject);
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                // 如果对象已经被释放，记录警告但不中断程序
+                Debug.LogWarning($"Attempted to release already released object: {gameObject.name}. Error: {ex.Message}");
+            }
         }
     }
 }
-

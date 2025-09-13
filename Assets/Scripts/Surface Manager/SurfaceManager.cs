@@ -238,6 +238,13 @@ public class SurfaceManager : MonoBehaviour
         // 播放 SpawnObjectEffect
         foreach (SpawnObjectEffect spawnObjectEffect in SurfaceEffect.SpawnObjectEffects)
         {
+            // 检查预制体是否已分配
+            if (spawnObjectEffect.Prefab == null)
+            {
+                Debug.LogWarning("SpawnObjectEffect Prefab is not assigned! Skipping this effect.");
+                continue;
+            }
+            
             if (spawnObjectEffect.Probability > Random.value)
             {
                 if (!ObjectPools.ContainsKey(spawnObjectEffect.Prefab))
@@ -265,12 +272,43 @@ public class SurfaceManager : MonoBehaviour
 
                     instance.transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles + offset);
                 }
+                
+                // 如果是粒子系统类型，添加特殊处理
+                if (spawnObjectEffect.IsParticleSystem)
+                {
+                    ParticleSystem ps = instance.GetComponent<ParticleSystem>();
+                    if (ps != null)
+                    {
+                        // 确保粒子系统不循环
+                        var main = ps.main;
+                        main.loop = false;
+                        
+                        // 在粒子系统播放完成后回收对象
+                        StartCoroutine(DelayedReleaseParticleObject(
+                            ObjectPools[spawnObjectEffect.Prefab], 
+                            instance, 
+                            ps.main.duration + spawnObjectEffect.ParticleSystemDestroyDelay)
+                        );
+                    }
+                    else
+                    {
+                        // 如果没有粒子系统组件，使用默认方式回收
+                        StartCoroutine(DelayedReleaseDefault(ObjectPools[spawnObjectEffect.Prefab], instance, spawnObjectEffect.ParticleSystemDestroyDelay));
+                    }
+                }
             }
         }
 
         // 播放 PlayAudioEffect
         foreach (PlayAudioEffect playAudioEffect in SurfaceEffect.PlayAudioEffects)
         {
+            // 检查音频源预制体是否已分配
+            if (playAudioEffect.AudioSourcePrefab == null)
+            {
+                Debug.LogWarning("PlayAudioEffect AudioSourcePrefab is not assigned! Skipping this effect.");
+                continue;
+            }
+            
             if (!ObjectPools.ContainsKey(playAudioEffect.AudioSourcePrefab.gameObject))
             {
                 ObjectPools.Add(playAudioEffect.AudioSourcePrefab.gameObject, new ObjectPool<GameObject>(() => Instantiate(playAudioEffect.AudioSourcePrefab.gameObject)));
@@ -286,6 +324,76 @@ public class SurfaceManager : MonoBehaviour
             StartCoroutine(DisableAudioSource(ObjectPools[playAudioEffect.AudioSourcePrefab.gameObject], audioSource, clip.length));
         }
     }
+
+    /// <summary>
+    /// 延迟释放粒子系统对象
+    /// </summary>
+    /// <param name="Pool">对象池</param>
+    /// <param name="Instance">要释放的游戏对象实例</param>
+    /// <param name="Delay">延迟时间</param>
+    /// <returns>协程</returns>
+    private IEnumerator DelayedReleaseParticleObject(ObjectPool<GameObject> Pool, GameObject Instance, float Delay)
+    {
+        // 等待指定的延迟时间
+        yield return new WaitForSeconds(Delay);
+        
+        // 检查实例和对象池是否仍然有效
+        if (Instance != null && Pool != null)
+        {
+            // 确保对象是激活状态再进行禁用操作
+            if (Instance.activeInHierarchy)
+            {
+                Instance.SetActive(false);
+            }
+            
+            // 检查对象是否已经被释放（通过检查其父对象池引用）
+            if (Instance.TryGetComponent(out PoolableObject poolable))
+            {
+                // 只有当对象仍然属于当前对象池时才释放
+                if (poolable.Parent == Pool)
+                {
+                    Pool.Release(Instance);
+                    // 释放后清除引用以避免重复释放
+                    poolable.Parent = null;
+                }
+            }
+            else
+            {
+                // 如果没有PoolableObject组件，直接释放
+                Pool.Release(Instance);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 默认延迟释放对象的协程
+    /// </summary>
+    /// <param name="Pool">对象池</param>
+    /// <param name="Instance">要释放的游戏对象实例</param>
+    /// <param name="Delay">延迟时间</param>
+    /// <returns>协程</returns>
+    private IEnumerator DelayedReleaseDefault(ObjectPool<GameObject> Pool, GameObject Instance, float Delay)
+    {
+        yield return new WaitForSeconds(Delay);
+        
+        if (Instance != null && Pool != null)
+        {
+            Instance.SetActive(false);
+            if (Instance.TryGetComponent(out PoolableObject poolable))
+            {
+                if (poolable.Parent == Pool)
+                {
+                    Pool.Release(Instance);
+                    poolable.Parent = null;
+                }
+            }
+            else
+            {
+                Pool.Release(Instance);
+            }
+        }
+    }
+
 
     /// <summary>
     /// 在音频播放完成后，将 AudioSource 对象回收到对象池。
