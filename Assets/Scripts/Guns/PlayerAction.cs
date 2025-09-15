@@ -18,7 +18,8 @@ public class PlayerAction : MonoBehaviour
     private PlayerIK InverseKinematics;
     [SerializeField]
     private Image Crosshair;
-
+    [SerializeField] 
+    private Transform AimTarget;
     private bool IsReloading;
     
     // 性能优化：限制准星更新频率以减少不必要的计算
@@ -62,20 +63,37 @@ public class PlayerAction : MonoBehaviour
     /// </summary>
     private void UpdateCrosshair()
     {
-        // 当使用从枪口发射的射击类型时，计算准星位置
+        // 获取枪口位置作为射线起点
+        Vector3 gunTipPoint = GunSelector.ActiveGun.GetRaycastOrigin();
+        Vector3 forward;
+        
+        // 根据射击类型确定射线方向
+        if (GunSelector.ActiveGun.ShootConfig.ShootType == ShootType.FromGun)
+        {
+            forward = GunSelector.ActiveGun.GetGunForward();
+        }
+        else
+        {
+            forward = GunSelector.Camera.transform.forward;
+        }
+
+        // 默认将命中点设置为射线方向上10单位的位置
+        Vector3 hitPoint = gunTipPoint + forward * 10;
+        
+        // 执行射线检测，获取实际命中点
+        if (Physics.Raycast(gunTipPoint, forward, out RaycastHit hit, float.MaxValue, 
+                GunSelector.ActiveGun.ShootConfig.HitMask))
+        {
+            hitPoint = hit.point;
+        }
+        
+        // 更新瞄准目标的位置
+        AimTarget.transform.position = hitPoint;
+        
+        // 根据射击类型更新UI准星位置
         if (GunSelector?.ActiveGun?.ShootConfig?.ShootType == ShootType.FromGun)
         {
-            Vector3 gunTipPoint = GunSelector.ActiveGun.GetRaycastOrigin();
-            Vector3 forward = GunSelector.ActiveGun.GetGunForward();
-
-            Vector3 hitPoint = gunTipPoint + forward * 10;
-            // 执行射线检测，获取实际命中点
-            if (Physics.Raycast(gunTipPoint, forward, out RaycastHit hit, float.MaxValue, 
-                    GunSelector.ActiveGun.ShootConfig.HitMask))
-            {
-                hitPoint = hit.point;
-            }
-        
+            // 将世界坐标转换为屏幕坐标
             Vector3 screenSpaceLocation = GunSelector.Camera.WorldToScreenPoint(hitPoint);
 
             // 将世界坐标转换为UI局部坐标并设置准星位置
@@ -98,6 +116,7 @@ public class PlayerAction : MonoBehaviour
             Crosshair.rectTransform.anchoredPosition = Vector2.zero;
         }
     }
+
 
 
     /// <summary>

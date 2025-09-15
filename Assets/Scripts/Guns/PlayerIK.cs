@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 /// <summary>
@@ -90,5 +91,29 @@ public class PlayerIK : MonoBehaviour
             Animator.SetIKHintPosition(AvatarIKHint.RightElbow, RightElbowIKTarget.position);
             Animator.SetIKHintPositionWeight(AvatarIKHint.RightElbow, ElbowIKAmount);
         }
+    }
+
+    /// <summary>
+    /// 设置枪械持握风格，切换是否为单手或双手持枪状态。
+    /// </summary>
+    /// <param name="OnHanded">若为 true，则启用单手持枪；否则启用双手持枪。</param>
+    public void SetGunStyle(bool OnHanded)
+    {
+        Animator.SetBool("Is2HandedGun", !OnHanded);
+        Animator.SetBool("Is1HandedGun", OnHanded);
+    }
+    
+    /// <summary>
+    /// 根据指定的武器父对象自动查找并设置 IK 目标点。
+    /// </summary>
+    /// <param name="GunParent">武器模型的根 Transform 对象。</param>
+    public void Setup(Transform GunParent)
+    {
+        // 设置IK目标点，用于动画反向动力学
+        Transform[] allChildren = GunParent.GetComponentsInChildren<Transform>();
+        LeftElbowIKTarget = allChildren.FirstOrDefault(child => child.name == "LeftElbow");
+        RightElbowIKTarget = allChildren.FirstOrDefault(child => child.name == "RightElbow");
+        LeftHandIKTarget = allChildren.FirstOrDefault(child => child.name == "LeftHand");
+        RightHandIKTarget = allChildren.FirstOrDefault(child => child.name == "RightHand");
     }
 }

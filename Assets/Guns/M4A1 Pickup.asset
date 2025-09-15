@@ -17,7 +17,7 @@ MonoBehaviour:
   Name: Assault Rifle
   ModelPrefab: {fileID: 4638496896245403333, guid: 106e7995a5db69145b9779e6f3a94ab2,
     type: 3}
-  SpawnPoint: {x: 0.1254, y: -0.223, z: 0.4}
+  SpawnPoint: {x: 0.208, y: 0.043, z: 0.112}
   SpawnRotation: {x: 0, y: 0, z: 0}
   DamageConfig: {fileID: 11400000, guid: 7dd6198acc6138d45a0a1d8170fd089e, type: 2}
   AmmoConfig: {fileID: 11400000, guid: 0031253ab1a71324da6fa7d25361c1f4, type: 2}

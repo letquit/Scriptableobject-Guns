@@ -55,7 +55,7 @@ public class PlayerGunSelector : MonoBehaviour
     /// <summary>
     /// 在对象被唤醒时调用，初始化当前枪械配置
     /// </summary>
-    private void Awake()
+    private void Start()
     {
         // 查找并实例化指定类型的枪械
         GunScriptableObject gun = Guns.Find(gun => gun.Type == Gun);
@@ -81,20 +81,8 @@ public class PlayerGunSelector : MonoBehaviour
         // 如果克隆成功，则在指定父对象下生成枪械实例
         ActiveGun?.Spawn(GunParent, this, Camera);
 
-        DoIkMagic();
-    }
-
-    /// <summary>
-    /// 配置玩家IK目标点，根据枪械模型中的命名子对象设置手部和肘部IK目标
-    /// </summary>
-    private void DoIkMagic()
-    {
-        // 设置IK目标点，用于动画反向动力学
-        Transform[] allChildren = GunParent.GetComponentsInChildren<Transform>();
-        InverseKinematics.LeftElbowIKTarget = allChildren.FirstOrDefault(child => child.name == "LeftElbow");
-        InverseKinematics.RightElbowIKTarget = allChildren.FirstOrDefault(child => child.name == "RightElbow");
-        InverseKinematics.LeftHandIKTarget = allChildren.FirstOrDefault(child => child.name == "LeftHand");
-        InverseKinematics.RightHandIKTarget = allChildren.FirstOrDefault(child => child.name == "RightHand");
+        InverseKinematics.SetGunStyle(ActiveGun.Type == GunType.Glock);
+        InverseKinematics.Setup(GunParent);
     }
 
     /// <summary>
