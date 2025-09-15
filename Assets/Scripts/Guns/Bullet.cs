@@ -9,9 +9,28 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class Bullet : MonoBehaviour
 {
-    private Rigidbody Rigidbody;
-    [field: SerializeField]
-    public Vector2 SpawnLocation { get; private set; }
+    private int ObjectsPenetrated;
+    
+    /// <summary>
+    /// 获取当前子弹关联的刚体组件
+    /// </summary>
+    public Rigidbody Rigidbody { get; private set; }
+
+    /// <summary>
+    /// 获取或设置子弹生成时的位置
+    /// </summary>
+    [field: SerializeField] 
+    public Vector3 SpawnLocation { get; private set; }
+
+    /// <summary>
+    /// 获取或设置子弹生成时的速度
+    /// </summary>
+    [field: SerializeField] 
+    public Vector3 SpawnVelocity { get; private set; }
+
+    /// <summary>
+    /// 子弹在发射后自动销毁前的延迟时间（秒）
+    /// </summary>
     [SerializeField]
     private float DelayedDisableTime = 2f;
 
@@ -20,7 +39,8 @@ public class Bullet : MonoBehaviour
     /// </summary>
     /// <param name="Bullet">发生碰撞的子弹实例</param>
     /// <param name="Collision">碰撞信息，如果为null表示超时销毁</param>
-    public delegate void CollisionEvent(Bullet Bullet, Collision Collision);
+    /// <param name="ObjectsPenetrated">已穿透物体的数量</param>
+    public delegate void CollisionEvent(Bullet Bullet, Collision Collision, int ObjectsPenetrated);
     
     /// <summary>
     /// 子弹碰撞事件，在子弹发生碰撞或超时销毁时触发
@@ -41,9 +61,11 @@ public class Bullet : MonoBehaviour
     /// <param name="SpawnForce">子弹的初始发射力</param>
     public void Spawn(Vector3 SpawnForce)
     {
+        ObjectsPenetrated = 0;
         SpawnLocation = transform.position;
         transform.forward = SpawnForce.normalized;
         Rigidbody.AddForce(SpawnForce);
+        SpawnVelocity = SpawnForce * Time.fixedDeltaTime / Rigidbody.mass;
         StartCoroutine(DelayedDisable(DelayedDisableTime));
     }
 
@@ -54,21 +76,25 @@ public class Bullet : MonoBehaviour
     /// <returns>协程迭代器</returns>
     private IEnumerator DelayedDisable(float Time)
     {
+        yield return null;
         yield return new WaitForSeconds(Time);
         OnCollisionEnter(null);
     }
     
     /// <summary>
     /// 碰撞检测回调函数
+    /// 当子弹与其它物体发生碰撞时调用，或在超时销毁时手动调用
     /// </summary>
-    /// <param name="Collision">碰撞信息</param>
+    /// <param name="Collision">碰撞信息，若为null表示是超时销毁</param>
     private void OnCollisionEnter(Collision Collision)
     {
-        OnCollision?.Invoke(this, Collision);
+        OnCollision?.Invoke(this, Collision, ObjectsPenetrated);
+        ObjectsPenetrated++;
     }
 
     /// <summary>
     /// 组件禁用时的清理工作
+    /// 停止所有协程并重置物理状态及事件监听
     /// </summary>
     private void OnDisable()
     {
@@ -78,4 +104,3 @@ public class Bullet : MonoBehaviour
         OnCollision = null;
     }
 }
-

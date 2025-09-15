@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
+using Random = UnityEngine.Random;
 
 /// <summary>
 /// 枪械数据的 ScriptableObject 类，用于定义枪械的基本属性、射击配置和弹道特效。
@@ -22,6 +23,7 @@ public class GunScriptableObject : ScriptableObject, ICloneable
     public ShootConfigScriptableObject ShootConfig;
     public TrailConfigScriptableObject TrailConfig;
     public AudioConfigScriptableObject AudioConfig;
+    public BulletPenetrationConfigScriptableObject BulletPenConfig;
 
     public ICollisionHandler[] BulletImpactEffects = new ICollisionHandler[0];
     
@@ -155,11 +157,10 @@ public class GunScriptableObject : ScriptableObject, ICloneable
         bullet.gameObject.SetActive(false);
     }
 
-
     /// <summary>
     /// 执行射击逻辑，包括射速控制、散布计算、射线检测和弹道轨迹播放。
     /// </summary>
-    public void TryToShoot()
+    private void TryToShoot()
     {
         // 根据上次停止射击的时间与当前时间的间隔，调整初始点击时间以模拟后坐力恢复效果
         if (Time.time - LastShootTime - ShootConfig.FireRate > Time.deltaTime)
@@ -211,7 +212,7 @@ public class GunScriptableObject : ScriptableObject, ICloneable
             // 根据配置选择命中检测方式：射线检测或投射物检测
             if (ShootConfig.IsHitscan)
             {
-                DoHitscanShoot(shootDirection);
+                DoHitscanShoot(shootDirection, GetRaycastOrigin(), ShootSystem.transform.position);
             }
             else
             {
@@ -224,12 +225,15 @@ public class GunScriptableObject : ScriptableObject, ICloneable
     /// 执行射线检测射击逻辑，根据是否命中目标播放对应的弹道轨迹。
     /// </summary>
     /// <param name="ShootDirection">射击方向向量。</param>
-    private void DoHitscanShoot(Vector3 ShootDirection)
+    /// <param name="Origin">射线检测的起始位置。</param>
+    /// <param name="TrailOrigin">弹道轨迹的起始位置。</param>
+    /// <param name="Iteration">迭代次数，用于递归调用时的层级控制。</param>
+    private void DoHitscanShoot(Vector3 ShootDirection, Vector3 Origin, Vector3 TrailOrigin, int Iteration = 0)
     {
         
         // 发射射线检测命中
         if (Physics.Raycast(
-                GetRaycastOrigin(),
+                Origin,
                 ShootDirection,
                 out RaycastHit hit,
                 float.MaxValue,
@@ -239,9 +243,10 @@ public class GunScriptableObject : ScriptableObject, ICloneable
             // 命中目标时播放弹道轨迹
             ActiveMonoBehaviour.StartCoroutine(
                 PlayTrail(
-                    ShootSystem.transform.position,
+                    TrailOrigin,
                     hit.point,
-                    hit
+                    hit,
+                    Iteration
                 )
             );
         }
@@ -250,9 +255,10 @@ public class GunScriptableObject : ScriptableObject, ICloneable
             // 未命中目标时播放空弹道轨迹
             ActiveMonoBehaviour.StartCoroutine(
                 PlayTrail(
-                    ShootSystem.transform.position,
-                    ShootSystem.transform.position + (ShootDirection * TrailConfig.MissDistance),
-                    new RaycastHit()
+                    TrailOrigin,
+                    TrailOrigin + (ShootDirection * TrailConfig.MissDistance),
+                    new RaycastHit(),
+                    Iteration
                 )
             );
         }
@@ -327,18 +333,51 @@ public class GunScriptableObject : ScriptableObject, ICloneable
     /// </summary>
     /// <param name="Bullet">发生碰撞的子弹实例。</param>
     /// <param name="Collision">Unity 碰撞信息对象。</param>
-    private void HandleBulletCollision(Bullet Bullet, Collision Collision)
+    /// <param name="ObjectsPenetrated">已穿透物体的数量。</param>
+    private void HandleBulletCollision(Bullet Bullet, Collision Collision, int ObjectsPenetrated)
     {
         TrailRenderer trail = Bullet.GetComponentInChildren<TrailRenderer>();
-        if (trail != null)
-        {
-            trail.transform.SetParent(null, true);
-            ActiveMonoBehaviour.StartCoroutine(DelayedDisableTrail(trail));
-        }
         
-        Bullet.gameObject.SetActive(false);
-        BulletPool.Release(Bullet);
+        // 判断是否满足穿透条件：碰撞存在、配置有效且未超过最大穿透数量
+        if (Collision != null && BulletPenConfig != null &&
+            BulletPenConfig.MaxObjectsToPenetrate > ObjectsPenetrated)
+        {
+            // 计算子弹飞行方向并进行反向射线检测以确定穿透后的位置
+            Vector3 direction = (Bullet.transform.position - (Vector3)Bullet.SpawnLocation).normalized;
+            ContactPoint contact = Collision.GetContact(0);
+            Vector3 backCastOrigin = contact.point + direction * BulletPenConfig.MaxPenetrationDepth;
+            
+            // 执行反向射线检测，判断是否可以穿透到目标位置
+            if (Physics.Raycast(
+                    backCastOrigin,
+                    -direction,
+                    out RaycastHit hit,
+                    BulletPenConfig.MaxPenetrationDepth,
+                    ShootConfig.HitMask
+                ))
+            {
+                // 添加随机扰动模拟精度损失，并更新子弹位置与速度
+                direction += new Vector3(
+                    Random.Range(-BulletPenConfig.AccuracyLoss.x, BulletPenConfig.AccuracyLoss.x),
+                    Random.Range(-BulletPenConfig.AccuracyLoss.y, BulletPenConfig.AccuracyLoss.y),
+                    Random.Range(-BulletPenConfig.AccuracyLoss.z, BulletPenConfig.AccuracyLoss.z)
+                );
+                Bullet.transform.position = hit.point + direction * 0.01f;
+                Bullet.Rigidbody.linearVelocity = Bullet.SpawnVelocity - direction;
+            }
+            else
+            {
+                // 若无法穿透，则禁用尾迹和子弹
+                DisableTrailAndBullet(trail, Bullet);
+            }
+        }
+        else
+        {
+            // 不满足穿透条件时，直接禁用尾迹和子弹
+            DisableTrailAndBullet(trail, Bullet);
+        }
 
+        // 如果碰撞有效，处理撞击效果
         if (Collision != null)
         {
             ContactPoint contactPoint = Collision.GetContact(0);
@@ -347,11 +386,30 @@ public class GunScriptableObject : ScriptableObject, ICloneable
                 Vector3.Distance(contactPoint.point, Bullet.SpawnLocation),
                 contactPoint.point,
                 contactPoint.normal,
-                contactPoint.otherCollider
+                contactPoint.otherCollider,
+                ObjectsPenetrated
             );
         }
     }
 
+    /// <summary>
+    /// 禁用子弹和尾迹效果，并将子弹对象回收到对象池中
+    /// </summary>
+    /// <param name="Trail">尾迹渲染器组件，用于显示子弹飞行轨迹</param>
+    /// <param name="Bullet">子弹组件，包含子弹的逻辑和数据</param>
+    private void DisableTrailAndBullet(TrailRenderer Trail, Bullet Bullet)
+    {
+        if (Trail != null)
+        {
+            // 解除尾迹与子弹的父子关系，并延迟禁用尾迹效果
+            Trail.transform.SetParent(null, true);
+            ActiveMonoBehaviour.StartCoroutine(DelayedDisableTrail(Trail));
+        }
+        // 禁用子弹游戏对象并回收到对象池
+        Bullet.gameObject.SetActive(false);
+        BulletPool.Release(Bullet);
+    }
+    
     /// <summary>
     /// 处理子弹撞击逻辑，包括表面效果和对可伤害对象造成伤害。
     /// </summary>
@@ -359,12 +417,15 @@ public class GunScriptableObject : ScriptableObject, ICloneable
     /// <param name="HitLocation">撞击点坐标。</param>
     /// <param name="HitNormal">撞击法线方向。</param>
     /// <param name="HitCollider">被撞击的碰撞体。</param>
+    /// <param name="ObjectsPenetrated">穿透的物体数量，默认为0。</param>
     private void HandleBulletImpact(
         float DistanceTraveled,
         Vector3 HitLocation,
         Vector3 HitNormal,
-        Collider HitCollider)
+        Collider HitCollider,
+        int ObjectsPenetrated = 0)
     {
+        // 处理撞击表面效果
         SurfaceManager.Instance.HandleImpact(
             HitCollider.gameObject,
             HitLocation,
@@ -373,11 +434,23 @@ public class GunScriptableObject : ScriptableObject, ICloneable
             0
         );
 
+        // 检查碰撞体是否可受伤，如果可受伤则计算并应用伤害
         if (HitCollider.TryGetComponent(out IDamageable damageable))
         {
-            damageable.TakeDamage(DamageConfig.GetDamage(DistanceTraveled));
+            float maxPercentDamage = 1;
+            // 如果配置了穿透伤害衰减，则根据穿透物体数量计算伤害衰减
+            if (BulletPenConfig != null && ObjectsPenetrated > 0)
+            {
+                for (int i = 0; i < ObjectsPenetrated; i++)
+                {
+                    maxPercentDamage *= BulletPenConfig.DamageRetentionPercentage;
+                }
+            }
+            
+            damageable.TakeDamage(DamageConfig.GetDamage(DistanceTraveled, maxPercentDamage));
         }
 
+        // 执行所有子弹撞击效果处理器
         foreach (ICollisionHandler handler in BulletImpactEffects)
         {
             handler.HandleImpact(HitCollider, HitLocation, HitNormal, this);
@@ -450,7 +523,7 @@ public class GunScriptableObject : ScriptableObject, ICloneable
     /// <param name="EndPoint">轨迹的结束位置。</param>
     /// <param name="Hit">射线检测的碰撞信息。</param>
     /// <returns>协程枚举器。</returns>
-    private IEnumerator PlayTrail(Vector3 StartPoint, Vector3 EndPoint, RaycastHit Hit)
+    private IEnumerator PlayTrail(Vector3 StartPoint, Vector3 EndPoint, RaycastHit Hit, int Iteration = 0)
     {
         // 限制同时激活的轨迹数量
         if (activeTrails.Count >= MaxActiveTrails)
@@ -500,7 +573,7 @@ public class GunScriptableObject : ScriptableObject, ICloneable
 
         if (Hit.collider != null)
         {
-            HandleBulletImpact(distance, EndPoint, Hit.normal, Hit.collider);
+            HandleBulletImpact(distance, EndPoint, Hit.normal, Hit.collider, Iteration);
         }
         
         // 缩短等待时间
@@ -514,6 +587,31 @@ public class GunScriptableObject : ScriptableObject, ICloneable
             if (TrailPool != null)
             {
                 TrailPool.Release(instance);
+            }
+        }
+
+        if (BulletPenConfig != null && BulletPenConfig.MaxObjectsToPenetrate > Iteration)
+        {
+            yield return null;
+            Vector3 direction = (EndPoint - StartPoint).normalized;
+            Vector3 backCastOrigin = Hit.point + direction * BulletPenConfig.MaxPenetrationDepth;
+
+            if (Physics.Raycast(
+                    backCastOrigin,
+                    -direction,
+                    out RaycastHit hit,
+                    BulletPenConfig.MaxPenetrationDepth,
+                    ShootConfig.HitMask
+                ))
+            {
+                Vector3 penetrationOrigin = hit.point;
+                direction += new Vector3(
+                    Random.Range(-BulletPenConfig.AccuracyLoss.x, BulletPenConfig.AccuracyLoss.x),
+                    Random.Range(-BulletPenConfig.AccuracyLoss.y, BulletPenConfig.AccuracyLoss.y),
+                    Random.Range(-BulletPenConfig.AccuracyLoss.z, BulletPenConfig.AccuracyLoss.z)
+                );
+                
+                DoHitscanShoot(direction, penetrationOrigin, penetrationOrigin, Iteration + 1);
             }
         }
     }
@@ -591,6 +689,7 @@ public class GunScriptableObject : ScriptableObject, ICloneable
         config.AmmoConfig = AmmoConfig.Clone() as AmmoConfigScriptableObject;
         config.TrailConfig = TrailConfig.Clone() as TrailConfigScriptableObject;
         config.AudioConfig = AudioConfig.Clone() as AudioConfigScriptableObject;
+        config.BulletPenConfig = BulletPenConfig.Clone() as BulletPenetrationConfigScriptableObject;
         
         // 复制模型和位置配置
         config.ModelPrefab = ModelPrefab;

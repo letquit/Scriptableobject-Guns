@@ -26,11 +26,14 @@ public class DamageConfigScriptableObject : ScriptableObject, ICloneable
     /// 根据距离获取伤害值
     /// </summary>
     /// <param name="Distance">距离参数，用于计算在该距离下的伤害值</param>
+    /// <param name="DamageMultiplier">伤害倍率，用于对基础伤害进行缩放</param>
     /// <returns>计算得到的伤害值，返回整数类型</returns>
-    public int GetDamage(float Distance = 0)
+    public int GetDamage(float Distance = 0, float DamageMultiplier = 1)
     {
         // 使用伤害曲线评估指定距离下的伤害值，并向上取整为整数
-        return Mathf.CeilToInt(DamageCurve.Evaluate(Distance, Random.value));
+        return Mathf.CeilToInt(
+            DamageCurve.Evaluate(Distance, Random.value) * DamageMultiplier
+        );
     }
 
     /// <summary>

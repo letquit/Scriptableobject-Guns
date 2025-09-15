@@ -6,17 +6,15 @@
   <component name="ChangeListManager">
     <list default="true" id="1d35f8f1-2ca6-40bf-b392-f9d9cdfe04ee" name="更改" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Scriptableobject-Guns/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Scriptableobject-Guns/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Guns/Glock.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Guns/Glock.asset" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Guns/M4A1 Pickup.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Guns/M4A1 Pickup.asset" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Guns/M4A1.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Guns/M4A1.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/machinegun.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Prefabs/machinegun.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Guns/Rocket Launcher Pickup.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Guns/Rocket Launcher Pickup.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Guns/Rocket Launcher.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Guns/Rocket Launcher.asset" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Guns/PlayerAction.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Guns/PlayerAction.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Guns/PlayerGunSelector.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Guns/PlayerGunSelector.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Guns/PlayerIK.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Guns/PlayerIK.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/StarterAssets/ThirdPersonController/Character/Animations/StarterAssetsThirdPerson.controller" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/StarterAssets/ThirdPersonController/Character/Animations/StarterAssetsThirdPerson.controller" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/StarterAssets/ThirdPersonController/Scripts/ThirdPersonController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/StarterAssets/ThirdPersonController/Scripts/ThirdPersonController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Packages/manifest.json" beforeDir="false" afterPath="$PROJECT_DIR$/Packages/manifest.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Packages/packages-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Packages/packages-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Guns/Bullet.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Guns/Bullet.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Guns/DamageConfigScriptableObject.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Guns/DamageConfigScriptableObject.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Guns/GunScriptableObject.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Guns/GunScriptableObject.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,6 +23,9 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/Assets/Scripts/Guns/BulletPenetrationConfigScriptableObject.cs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 6
@@ -108,7 +109,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1757905949330</updated>
-      <workItem from="1757905951303" duration="3704000" />
+      <workItem from="1757905951303" duration="7422000" />
     </task>
     <servers />
   </component>
