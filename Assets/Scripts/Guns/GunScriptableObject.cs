@@ -72,6 +72,32 @@ public class GunScriptableObject : ScriptableObject, ICloneable
         ShootSystem = Model.GetComponentInChildren<ParticleSystem>();
         ShootingAudioSource = Model.GetComponent<AudioSource>();
     }
+    
+    /// <summary>
+    /// 立即销毁游戏对象并清理相关资源
+    /// </summary>
+    /// <remarks>
+    /// 此方法会立即销毁对象而不是等待Unity引擎的便利时机，
+    /// 在同一帧内执行多个清理操作以确保资源被正确释放。
+    /// </remarks>
+    public void Despawn()
+    {
+        // 立即停用并销毁模型对象，确保在同一帧内完成销毁
+        Model.SetActive(false);
+        Destroy(Model);
+        
+        // 清理轨迹池和子弹池资源
+        TrailPool.Clear();
+        if (BulletPool != null)
+        {
+            BulletPool.Clear();
+        }
+
+        // 清空音频源和射击系统引用
+        ShootingAudioSource = null;
+        ShootSystem = null;
+    }
+
 
     /// <summary>
     /// 预热对象池，预先创建部分轨迹渲染器对象以提升性能。

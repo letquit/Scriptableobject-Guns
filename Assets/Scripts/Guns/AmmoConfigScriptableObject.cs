@@ -66,6 +66,25 @@ public class AmmoConfigScriptableObject : ScriptableObject, ICloneable
     }
 
     /// <summary>
+    /// 添加弹药数量到当前弹药量中
+    /// </summary>
+    /// <param name="Amount">要添加的弹药数量</param>
+    public void AddAmmo(int Amount)
+    {
+        // 如果添加后的弹药量超过最大弹药量，则将当前弹药量设置为最大值
+        // 否则正常增加弹药量
+        if (CurrentAmmo + Amount > MaxAmmo)
+        {
+            CurrentAmmo = MaxAmmo;
+        }
+        else
+        {
+            CurrentAmmo += Amount;
+        }
+    }
+
+
+    /// <summary>
     /// 创建当前弹药配置脚本化对象的克隆副本
     /// </summary>
     /// <returns>返回一个新的弹药配置脚本化对象实例，包含与当前对象相同的属性值</returns>

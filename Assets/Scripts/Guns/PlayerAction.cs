@@ -62,36 +62,43 @@ public class PlayerAction : MonoBehaviour
     /// </summary>
     private void UpdateCrosshair()
     {
-        if (Crosshair == null || GunSelector?.ActiveGun?.ShootConfig?.ShootType != ShootType.FromGun) 
-            return;
-
-        Vector3 gunTipPoint = GunSelector.ActiveGun.GetRaycastOrigin();
-        Vector3 forward = GunSelector.ActiveGun.GetGunForward();
-
-        Vector3 hitPoint = gunTipPoint + forward * 10;
-        /// 执行射线检测，获取实际命中点
-        if (Physics.Raycast(gunTipPoint, forward, out RaycastHit hit, float.MaxValue, 
-                GunSelector.ActiveGun.ShootConfig.HitMask))
+        // 当使用从枪口发射的射击类型时，计算准星位置
+        if (GunSelector?.ActiveGun?.ShootConfig?.ShootType == ShootType.FromGun)
         {
-            hitPoint = hit.point;
-        }
+            Vector3 gunTipPoint = GunSelector.ActiveGun.GetRaycastOrigin();
+            Vector3 forward = GunSelector.ActiveGun.GetGunForward();
+
+            Vector3 hitPoint = gunTipPoint + forward * 10;
+            // 执行射线检测，获取实际命中点
+            if (Physics.Raycast(gunTipPoint, forward, out RaycastHit hit, float.MaxValue, 
+                    GunSelector.ActiveGun.ShootConfig.HitMask))
+            {
+                hitPoint = hit.point;
+            }
         
-        Vector3 screenSpaceLocation = GunSelector.Camera.WorldToScreenPoint(hitPoint);
+            Vector3 screenSpaceLocation = GunSelector.Camera.WorldToScreenPoint(hitPoint);
 
-        /// 将世界坐标转换为UI局部坐标并设置准星位置
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                (RectTransform)Crosshair.transform.parent,
-                screenSpaceLocation,
-                null,
-                out Vector2 localPosition))
-        {
-            Crosshair.rectTransform.anchoredPosition = localPosition;
-        }
+            // 将世界坐标转换为UI局部坐标并设置准星位置
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    (RectTransform)Crosshair.transform.parent,
+                    screenSpaceLocation,
+                    null,
+                    out Vector2 localPosition))
+            {
+                Crosshair.rectTransform.anchoredPosition = localPosition;
+            }
+            else
+            {
+                Crosshair.rectTransform.anchoredPosition = Vector2.zero;
+            }
+        } 
         else
-        {
+        { 
+            // 非枪口射击类型时，将准星重置到屏幕中心
             Crosshair.rectTransform.anchoredPosition = Vector2.zero;
         }
     }
+
 
     /// <summary>
     /// 结束换弹过程，恢复武器状态和IK权重

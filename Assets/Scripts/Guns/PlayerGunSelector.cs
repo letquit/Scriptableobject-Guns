@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -48,11 +49,13 @@ public class PlayerGunSelector : MonoBehaviour
     /// </summary>
     public GunScriptableObject ActiveGun;
 
+    [SerializeField] private GunScriptableObject ActiveBaseGun;
+
 
     /// <summary>
-    /// 在游戏开始时初始化枪械和相关的IK目标设置
+    /// 在对象被唤醒时调用，初始化当前枪械配置
     /// </summary>
-    private void Start()
+    private void Awake()
     {
         // 查找并实例化指定类型的枪械
         GunScriptableObject gun = Guns.Find(gun => gun.Type == Gun);
@@ -62,13 +65,30 @@ public class PlayerGunSelector : MonoBehaviour
             Debug.LogError($"No GunScriptableObject found for GunType: {gun}");
             return;
         }
+        
+        SetupGun(gun);
+    }
 
+    /// <summary>
+    /// 设置指定枪械为当前使用枪械，并生成其实例
+    /// </summary>
+    /// <param name="Gun">要设置的枪械ScriptableObject配置</param>
+    private void SetupGun(GunScriptableObject Gun)
+    {
+        ActiveBaseGun = Gun;
         // 克隆枪械配置对象并激活使用
-        ActiveGun = gun.Clone() as GunScriptableObject;
+        ActiveGun = Gun.Clone() as GunScriptableObject;
         // 如果克隆成功，则在指定父对象下生成枪械实例
         ActiveGun?.Spawn(GunParent, this, Camera);
 
+        DoIkMagic();
+    }
 
+    /// <summary>
+    /// 配置玩家IK目标点，根据枪械模型中的命名子对象设置手部和肘部IK目标
+    /// </summary>
+    private void DoIkMagic()
+    {
         // 设置IK目标点，用于动画反向动力学
         Transform[] allChildren = GunParent.GetComponentsInChildren<Transform>();
         InverseKinematics.LeftElbowIKTarget = allChildren.FirstOrDefault(child => child.name == "LeftElbow");
@@ -76,5 +96,38 @@ public class PlayerGunSelector : MonoBehaviour
         InverseKinematics.LeftHandIKTarget = allChildren.FirstOrDefault(child => child.name == "LeftHand");
         InverseKinematics.RightHandIKTarget = allChildren.FirstOrDefault(child => child.name == "RightHand");
     }
-}
 
+    /// <summary>
+    /// 销毁当前激活的枪械实例
+    /// </summary>
+    public void DespawnActiveGun()
+    {
+        ActiveGun.Despawn();
+        Destroy(ActiveGun);
+    }
+    
+    /// <summary>
+    /// 拾取新的枪械并替换当前枪械
+    /// </summary>
+    /// <param name="Gun">要拾取的新枪械ScriptableObject配置</param>
+    public void PickupGun(GunScriptableObject Gun)
+    {
+        DespawnActiveGun();
+        SetupGun(Gun);
+    }
+    
+    /// <summary>
+    /// 应用一组修饰符到当前枪械上，会重新生成枪械实例并应用所有修饰符效果
+    /// </summary>
+    /// <param name="Modifiers">要应用的修饰符数组</param>
+    public void ApplyModifiers(IModifier[] Modifiers)
+    {
+        DespawnActiveGun();
+        SetupGun(ActiveBaseGun);
+
+        foreach (IModifier modifier in Modifiers)
+        {
+            modifier.Apply(ActiveGun);
+        }
+    }
+}
