@@ -10,16 +10,20 @@ using Random = UnityEngine.Random;
 /// 需要NavMeshAgent组件支持。
 /// </summary>
 [DisallowMultipleComponent]
-[RequireComponent(typeof(NavMeshAgent))]
-public class EnemyMovement : MonoBehaviour, ISlowable
+[RequireComponent(typeof(NavMeshAgent), typeof(Rigidbody))]
+public class EnemyMovement : MonoBehaviour, ISlowable, IKnockbackable
 {
     private Animator Animator;
     [SerializeField]
     private float StillDelay = 1f;
+    [field: SerializeField]
+    public float StillThreshold { get; set; } = 0.01f;
     private LookAtIK LookAt;
     private NavMeshAgent Agent;
+    private Rigidbody Rigidbody;
 
     private Coroutine SlowCoroutine;
+    private Coroutine MoveCoroutine;
     private float BaseSpeed;
     private const string IsWalking = "IsWalking";
     
@@ -39,6 +43,7 @@ public class EnemyMovement : MonoBehaviour, ISlowable
     {
         Animator = GetComponent<Animator>();
         Agent = GetComponent<NavMeshAgent>();
+        Rigidbody = GetComponent<Rigidbody>();
         LookAt = GetComponent<LookAtIK>();
         
         if (Triangulation.vertices == null || Triangulation.vertices.Length == 0)
@@ -59,7 +64,8 @@ public class EnemyMovement : MonoBehaviour, ISlowable
     /// </summary>
     private void Start()
     {
-        StartCoroutine(Roam());
+        MoveCoroutine = StartCoroutine(Roam());
+        BaseSpeed = Agent.speed;
     }
 
     // private void OnEnable()
@@ -268,5 +274,26 @@ public class EnemyMovement : MonoBehaviour, ISlowable
         }
 
         Agent.speed = BaseSpeed;
+    }
+
+    public void GetKnockedBack(Vector3 Force, float MaxMoveTime)
+    {
+        StopCoroutine(MoveCoroutine);
+        MoveCoroutine = StartCoroutine(ApplyKnockback(Force, MaxMoveTime));
+    }
+
+    private IEnumerator ApplyKnockback(Vector3 Force, float MaxMoveTime)
+    {
+        yield return null;
+        Agent.enabled = false;
+        Rigidbody.useGravity = true;
+        Rigidbody.isKinematic = false;
+        Rigidbody.AddForce(Force);
+        
+        yield return new WaitForFixedUpdate();
+        float knockbackTime = Time.time;
+        yield return new WaitUntil(
+            () => Rigidbody.linearVelocity.magnitude < StillThreshold || Time.time > knockbackTime + MaxMoveTime
+        );
     }
 }

@@ -48,10 +48,10 @@ public class Frost : AbstractAreaOfEffect
     /// <param name="HitPosition">碰撞位置</param>
     /// <param name="HitNormal">碰撞法线</param>
     /// <param name="Gun">武器脚本对象</param>
-    public override void HandleImpact(Collider ImpactedObject, Vector3 HitPosition, Vector3 HitNormal, GunScriptableObject Gun)
+    public override void HandleImpact(Collider ImpactedObject, Vector3 HitPosition, Vector3 HitNormal, float DistanceTreavelled, GunScriptableObject Gun)
     {
         // 调用基类的碰撞处理方法
-        base.HandleImpact(ImpactedObject, HitPosition, HitNormal, Gun);
+        base.HandleImpact(ImpactedObject, HitPosition, HitNormal, DistanceTreavelled, Gun);
 
         // 遍历所有受击对象，对可减速的目标施加减速效果
         for (int i = 0; i < Hits; i++)

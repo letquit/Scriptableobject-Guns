@@ -16,6 +16,8 @@ public enum GunType
     /// <summary>
     /// 火箭发射器
     /// </summary>
-    RocketLauncher
+    RocketLauncher,
+    
+    Shotgun
 }
 

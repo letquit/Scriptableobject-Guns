@@ -38,6 +38,8 @@ public class ShootConfigScriptableObject : ScriptableObject, ICloneable
     /// 值越小射速越快，默认值0.25秒
     /// </summary>
     public float FireRate = 0.25f;
+
+    public int BulletsPerShot = 1;
     
     /// <summary>
     /// 射击类型枚举值，表示当前使用的射击方式
@@ -73,6 +75,8 @@ public class ShootConfigScriptableObject : ScriptableObject, ICloneable
     /// </summary>
     [Header("Simple Spread")]
     public Vector3 Spread = new Vector3(0.1f, 0.1f, 0.1f);
+    
+    public Vector3 MinSpread = Vector3.zero;
 
     /// <summary>
     /// 基于纹理的散布设置
@@ -105,7 +109,11 @@ public class ShootConfigScriptableObject : ScriptableObject, ICloneable
         if (SpreadType == BulletSpreadType.Simple)
         {
             spread = Vector3.Lerp(
-                Vector3.zero,
+                new Vector3(
+                    Random.Range(-MinSpread.x, MinSpread.x),
+                    Random.Range(-MinSpread.y, MinSpread.y),
+                    Random.Range(-MinSpread.z, MinSpread.z)
+                ), 
                 new Vector3(
                     Random.Range(-Spread.x, Spread.x),
                     Random.Range(-Spread.y, Spread.y),

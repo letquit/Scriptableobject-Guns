@@ -16,6 +16,7 @@ public interface ICollisionHandler
         Collider ImpactedObject,
         Vector3 HitPosition,
         Vector3 HitNormal,
+        float DistanceTreavelled,
         GunScriptableObject Gun
     );
 }

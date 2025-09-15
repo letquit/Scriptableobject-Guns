@@ -36,7 +36,7 @@ public abstract class AbstractAreaOfEffect : ICollisionHandler
     /// <param name="HitPosition">碰撞位置</param>
     /// <param name="HitNormal">碰撞法线方向</param>
     /// <param name="Gun">武器配置数据</param>
-    public virtual void HandleImpact(Collider ImpactedObject, Vector3 HitPosition, Vector3 HitNormal, GunScriptableObject Gun)
+    public virtual void HandleImpact(Collider ImpactedObject, Vector3 HitPosition, Vector3 HitNormal, float DistanceTreavelled, GunScriptableObject Gun)
     {
         // 检测范围内的所有碰撞体
         Hits = Physics.OverlapSphereNonAlloc(

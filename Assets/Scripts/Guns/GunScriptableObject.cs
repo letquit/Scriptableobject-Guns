@@ -24,6 +24,7 @@ public class GunScriptableObject : ScriptableObject, ICloneable
     public TrailConfigScriptableObject TrailConfig;
     public AudioConfigScriptableObject AudioConfig;
     public BulletPenetrationConfigScriptableObject BulletPenConfig;
+    public KnockbackConfigScriptableObject KnockbackConfig;
 
     public ICollisionHandler[] BulletImpactEffects = new ICollisionHandler[0];
     
@@ -69,10 +70,18 @@ public class GunScriptableObject : ScriptableObject, ICloneable
         Model.transform.SetParent(Parent, false);
         Model.transform.localPosition = SpawnPoint;
         Model.transform.localRotation = Quaternion.Euler(SpawnRotation);
-
+        
         // 获取枪械模型中的粒子系统组件
         ShootSystem = Model.GetComponentInChildren<ParticleSystem>();
         ShootingAudioSource = Model.GetComponent<AudioSource>();
+
+        if (KnockbackConfig.KnockbackStrength > 0)
+        {
+            ICollisionHandler[] currentHandlers = BulletImpactEffects;
+            BulletImpactEffects = new ICollisionHandler[currentHandlers.Length + 1];
+            Array.Copy(currentHandlers, BulletImpactEffects, currentHandlers.Length);
+            BulletImpactEffects[^1] = new Knockback();
+        }
     }
     
     /// <summary>
@@ -189,34 +198,37 @@ public class GunScriptableObject : ScriptableObject, ICloneable
             // 播放射击特效和音效
             ShootSystem.Play();
             AudioConfig.PlayShootingClip(ShootingAudioSource, AmmoConfig.CurrentClipAmmo == 1);
-
-            // 计算并应用射击散布方向偏移
-            Vector3 spreadAmount = ShootConfig.GetSpread(Time.time - InitialClickTime);
-            Model.transform.forward += Model.transform.TransformDirection(spreadAmount);
-            
-            Vector3 shootDirection = Vector3.zero;
-
-            if (ShootConfig.ShootType == ShootType.FromGun)
-            {
-                shootDirection = ShootSystem.transform.forward;
-            }
-            else
-            {
-                shootDirection = ActiveCamera.transform.forward +
-                                 ActiveCamera.transform.TransformDirection(shootDirection);
-            }
             
             // 减少当前弹夹中的子弹数量
             AmmoConfig.CurrentClipAmmo--;
+            
+            for (int i = 0; i < ShootConfig.BulletsPerShot; i++)
+            {
+                // 计算并应用射击散布方向偏移
+                Vector3 spreadAmount = ShootConfig.GetSpread(Time.time - InitialClickTime);
+                Model.transform.forward += Model.transform.TransformDirection(spreadAmount);
+            
+                Vector3 shootDirection = Vector3.zero;
 
-            // 根据配置选择命中检测方式：射线检测或投射物检测
-            if (ShootConfig.IsHitscan)
-            {
-                DoHitscanShoot(shootDirection, GetRaycastOrigin(), ShootSystem.transform.position);
-            }
-            else
-            {
-                DoProjectileShoot(shootDirection);
+                if (ShootConfig.ShootType == ShootType.FromGun)
+                {
+                    shootDirection = ShootSystem.transform.forward;
+                }
+                else
+                {
+                    shootDirection = ActiveCamera.transform.forward +
+                                     ActiveCamera.transform.TransformDirection(shootDirection);
+                }
+
+                // 根据配置选择命中检测方式：射线检测或投射物检测
+                if (ShootConfig.IsHitscan)
+                {
+                    DoHitscanShoot(shootDirection, GetRaycastOrigin(), ShootSystem.transform.position);
+                }
+                else
+                {
+                    DoProjectileShoot(shootDirection);
+                }
             }
         }
     }
@@ -453,7 +465,7 @@ public class GunScriptableObject : ScriptableObject, ICloneable
         // 执行所有子弹撞击效果处理器
         foreach (ICollisionHandler handler in BulletImpactEffects)
         {
-            handler.HandleImpact(HitCollider, HitLocation, HitNormal, this);
+            handler.HandleImpact(HitCollider, HitLocation, HitNormal, DistanceTraveled, this);
         }
     }
 
@@ -690,6 +702,7 @@ public class GunScriptableObject : ScriptableObject, ICloneable
         config.TrailConfig = TrailConfig.Clone() as TrailConfigScriptableObject;
         config.AudioConfig = AudioConfig.Clone() as AudioConfigScriptableObject;
         config.BulletPenConfig = BulletPenConfig.Clone() as BulletPenetrationConfigScriptableObject;
+        config.KnockbackConfig = KnockbackConfig.Clone() as KnockbackConfigScriptableObject;
         
         // 复制模型和位置配置
         config.ModelPrefab = ModelPrefab;
